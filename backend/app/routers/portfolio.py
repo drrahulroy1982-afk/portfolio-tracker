@@ -49,10 +49,7 @@ def enrich_holdings(holdings: List[PortfolioHolding]) -> List[PortfolioHolding]:
                 if fetched_name:
                     h.company_name = fetched_name
                     
-            # Convert to INR if US equity
             current_price = price
-            if h.asset_class == "us_equity":
-                current_price = price * _usd_to_inr
             
             h.current_price = round(current_price, 2)
             h.pnl_absolute = round((current_price - h.avg_price) * h.quantity, 2)
@@ -91,9 +88,12 @@ async def get_portfolio_state():
     rate = await get_forex_rate()
     enriched = enrich_holdings(_portfolio_db)
     
-    net_worth = sum(
-        (h.current_price or h.avg_price) * h.quantity for h in enriched
-    )
+    net_worth = 0
+    for h in enriched:
+        val = (h.current_price or h.avg_price) * h.quantity
+        if h.asset_class == "us_equity":
+            val *= _usd_to_inr
+        net_worth += val
     
     return PortfolioState(
         holdings=enriched,
@@ -128,6 +128,13 @@ async def sync_portfolio(
     
     # Reconcile
     try:
+        # Before reconciling, ensure INDmoney US Equity snapshot values are converted to USD
+        # since the snapshot CSV has them in INR, but we want to store native USD internally
+        for h in csv_holdings:
+            if h.broker == BrokerType.INDMONEY and h.asset_class == "us_equity" and not getattr(h, 'is_order_history', False):
+                if _usd_to_inr > 0:
+                    h.avg_price = round(h.avg_price / _usd_to_inr, 4)
+
         new_holdings = reconcile_portfolio(_portfolio_db, csv_holdings, broker)
     except ValueError as e:
         raise HTTPException(400, detail=str(e))
