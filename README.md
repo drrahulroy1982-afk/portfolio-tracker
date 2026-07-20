@@ -91,4 +91,4 @@ This project is fully configured to be deployed on [Railway.app](https://railway
 4. Go to the **Variables** tab and add a new variable:
    - `NEXT_PUBLIC_API_URL`: Paste the backend domain URL you copied in the previous step (without a trailing slash).
 5. Go to the **Settings** tab, scroll down to **Networking**, and click **Generate Domain**.
-6. Click the generated frontend domain to view your live application!
+6. Click the generated frontend domain to view your live application
